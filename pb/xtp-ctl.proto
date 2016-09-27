@@ -1,0 +1,129 @@
+// this is basically what gRPC gives us...
+
+syntax = "proto2";
+
+message RPC {
+  optional Type rpc = 1;
+  optional bytes message = 2;
+  optional string error = 3; // non-empty if op failed. empty if ok.
+
+  enum Type {
+    Null = 0; // null value.
+    NoOp = 1; // no op RPC. basically a test.
+
+    // List the available resources (Transports, Listeners, Dialers, Conns, Streams)
+    ListReq = 2;
+    ListRes = 3;
+
+    // close a descriptor. used for Listener, Dialer, Conn, Stream
+    CloseReq = 4;
+    CloseRes = 5;
+
+    // Open a listener
+    ListenReq = 6;
+    ListenRes = 7;
+    // Listener.AcceptConn() or Conn.AcceptStream()
+    AcceptReq = 8;
+    AcceptRes = 9;
+
+    // Open a dialer
+    DialerReq = 10;
+    DialerRes = 11;
+    // Dialer.DialConn() or Conn.OpenStream()
+    DialReq = 12;
+    DialRes = 13;
+  }
+}
+
+// The types of things we use.
+message Transport {
+  optional int64 id = 1; // empty before allocation
+  optional string transport = 2;
+}
+
+message Listener {
+  optional int64 id = 1; // empty before allocation
+  optional int64 transportId = 2; // transport id
+  optional bytes multiaddr = 3;
+}
+
+message Dialer {
+  optional int64 id = 1; // empty before allocation
+  optional int64 transportId = 2; // transport id
+  optional bytes multiaddr = 3;
+}
+
+message Conn {
+  optional int64 id = 1; // empty before allocation
+  optional int64 transportId = 2; // transport id
+  optional bytes localMultiaddr = 3;
+  optional bytes remoteMultiaddr = 4;
+}
+
+message Stream {
+  optional int64 id = 1; // empty before allocation
+  optional int64 connId = 2;
+  optional int64 transportId = 3; // transport id
+  optional bytes localMultiaddr = 4;
+  optional bytes remoteMultiaddr = 5;
+}
+
+enum TType {
+  TTypeNil = 0; // protobuf default
+  TTypeTransport = 1;
+  TTypeListener = 2;
+  TTypeDialer = 3;
+  TTypeConn = 4;
+  TTypeStream = 5;
+}
+
+message ListReq {
+  // include one per type we want.
+  // same TType multiple times is idempotent.
+  repeated TType types = 1;
+}
+
+message ListRes {
+  repeated Item items = 1;
+
+  message Item {
+    optional int64 id = 1; // descriptor
+    optional TType type = 2;
+    optional bytes value = 3; // a {Transport, Listener, Dialer, Conn, Stream message}
+  }
+}
+
+message CloseReq {
+  optional int64 id = 1;
+}
+
+message ListenReq {
+  optional Listener listenerOpts = 1; // contians the desired listener options
+}
+message ListenRes {
+  optional Listener listener = 1; // contians the actual listener options
+}
+
+message AcceptReq {
+  optional int64 id = 1; // listener or conn to accept from
+}
+message AcceptRes {
+  optional Conn conn = 1; // the Conn we accepted
+  optional Stream stream = 2; // or the Stream we accepted
+}
+
+message DialerReq {
+  optional Dialer dialerOpts = 1; // contians the desired dialer options
+}
+message DialerRes {
+  optional Dialer dialer = 1; // contians the actual dialer options
+}
+
+message DialReq {
+  optional int64 id = 1; // transport, dialer, or conn to dial from
+  optional Conn connOpts = 2; // conn options to dial
+}
+message DialRes {
+  optional Conn conn = 1; // the Conn we dialed
+  optional Stream stream = 2; // or the Stream we dialed
+}
