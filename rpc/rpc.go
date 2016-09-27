@@ -1,6 +1,7 @@
 package xtpctlrpc
 
 import (
+  ma "github.com/multiformats/go-multiaddr"
   pb "github.com/libp2p/go-xtp-ctl/pb"
 )
 
@@ -16,7 +17,13 @@ func ListReq(s IoStream, types []pb.TType) ([]*pb.ListRes_Item, error) {
   if err := ReadRPCMsg(s, pb.RPC_ListRes, &res); err != nil {
     return nil, err
   }
-  return res.Items, nil
+  var is []*pb.ListRes_Item
+  for _, i := range res.Items {
+    if i.Valid() {
+      is = append(is, i)
+    }
+  }
+  return is, nil
 }
 
 func ListRes(s IoStream, items []*pb.ListRes_Item, err error) error {
@@ -35,9 +42,15 @@ func CloseReq(s IoStream, id int64) error {
   return ReadRPCMsg(s, pb.RPC_CloseRes, nil)
 }
 
-func ListenReq(s IoStream, lopts *pb.Listener) (listener *pb.Listener, err error) {
+func ListenReq(s IoStream, tid int64, laddr ma.Multiaddr) (*pb.Listener, error) {
   // send the request
-  err = WriteRPCMsg(s, pb.RPC_ListReq, &pb.ListenReq{ListenerOpts: lopts}, nil)
+  req := &pb.ListenReq{
+    ListenerOpts: &pb.Listener{
+      TransportId: &tid,
+      Multiaddr:   laddr.Bytes(),
+    },
+  }
+  err := WriteRPCMsg(s, pb.RPC_ListReq, req, nil)
   if err != nil {
     return nil, err
   }
@@ -74,9 +87,15 @@ func AcceptRes(s IoStream, conn *pb.Conn, st *pb.Stream, err error) error {
 }
 
 // todo: connOpts
-func DialerReq(s IoStream, dopts *pb.Dialer) (d *pb.Dialer, err error) {
+func DialerReq(s IoStream, tid int64, laddr ma.Multiaddr) (*pb.Dialer, error) {
   // send the request
-  err = WriteRPCMsg(s, pb.RPC_DialerReq, &pb.DialerReq{DialerOpts: dopts}, nil)
+  req := &pb.DialerReq{
+    DialerOpts: &pb.Dialer{
+      TransportId: &tid,
+      Multiaddr:   laddr.Bytes(),
+    },
+  }
+  err := WriteRPCMsg(s, pb.RPC_DialerReq, req, nil)
   if err != nil {
     return nil, err
   }
@@ -93,9 +112,15 @@ func DialerRes(s IoStream, d *pb.Dialer, err error) error {
   return WriteRPCMsg(s, pb.RPC_DialerRes, &pb.DialerRes{Dialer: d}, err)
 }
 
-func DialReq(s IoStream, id int64) (*pb.DialRes, error) {
+func DialReq(s IoStream, id int64, raddr ma.Multiaddr) (*pb.DialRes, error) {
   // send the request
-  err := WriteRPCMsg(s, pb.RPC_DialReq, &pb.DialReq{Id: &id}, nil)
+  req := &pb.DialReq{
+    Id: &id,
+    ConnOpts: &pb.Conn{
+      RemoteMultiaddr: raddr.Bytes(),
+    },
+  }
+  err := WriteRPCMsg(s, pb.RPC_DialReq, req, nil)
   if err != nil {
     return nil, err
   }

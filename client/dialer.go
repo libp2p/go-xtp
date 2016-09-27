@@ -1,8 +1,8 @@
 package xtpctlclient
 
 import (
+  pb "github.com/libp2p/go-xtp-ctl/pb"
   ma "github.com/multiformats/go-multiaddr"
-  manet "github.com/multiformats/go-multiaddr-net"
   xnet "github.com/libp2p/go-xtp-ctl/net"
   xrpc "github.com/libp2p/go-xtp-ctl/rpc"
 )
@@ -31,16 +31,15 @@ func (d *dialer) Dial(raddr ma.Multiaddr) (xnet.Conn, error) {
   // Send an accept request, wait for an accept response
   res, err := xrpc.DialReq(s, d.id, raddr)
   if err != nil {
-    return err
+    return nil, err
   }
 
-  c := newConn(l.client.Conn, s, res.Conn)
-  return c, nil
+  return newConn(d.client, s, res.Conn)
 }
 
 // Close closes the dialer.
 func (d *dialer) Close() error {
-  _, err := xrpc.CloseReq(d.ctls, d.id)
+  err := xrpc.CloseReq(d.ctls, d.id)
   d.ctls.Close()
   return err
 }

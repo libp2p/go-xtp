@@ -1,6 +1,7 @@
 package xtpctlclient
 
 import (
+  pb "github.com/libp2p/go-xtp-ctl/pb"
   ma "github.com/multiformats/go-multiaddr"
   xnet "github.com/libp2p/go-xtp-ctl/net"
   xrpc "github.com/libp2p/go-xtp-ctl/rpc"
@@ -39,11 +40,10 @@ func (c *conn) Dial() (xnet.Stream, error) {
   // Send an accept request, wait for an accept response
   res, err := xrpc.DialReq(s, c.id, nil)
   if err != nil {
-    return err
+    return nil, err
   }
 
-  s := newStream(l.client.Conn, s, res.Stream, c)
-  return s, nil
+  return newStream(c.client, s, res.Stream, c)
 }
 
 // Accept accepts an incoming conn.Dial from the other side.
@@ -55,23 +55,22 @@ func (c *conn) Accept() (xnet.Stream, error) {
   }
 
   // Send an accept request, wait for an accept response
-  res, err := xrpc.AcceptReq(s, c.id, nil)
+  res, err := xrpc.AcceptReq(s, c.id)
   if err != nil {
-    return err
+    return nil, err
   }
 
-  s := newStream(l.client.Conn, s, res.Stream, c)
-  return s, nil
+  return newStream(c.client, s, res.Stream, c)
 }
 
 // Close closes the dialer.
 func (c *conn) Close() error {
-  _, err := xrpc.CloseReq(c.ctls, c.id)
+  err := xrpc.CloseReq(c.ctls, c.id)
   c.ctls.Close()
   return err
 }
 
-func newConn(c *Client, ctls xnet.Stream, cn *pb.Conn) (*dialer, error) {
+func newConn(c *Client, ctls xnet.Stream, cn *pb.Conn) (*conn, error) {
   if !cn.Valid() {
     return nil, xrpc.ErrInvalidResponse
   }

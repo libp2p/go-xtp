@@ -1,8 +1,8 @@
 package xtpctlclient
 
 import (
+  pb "github.com/libp2p/go-xtp-ctl/pb"
   ma "github.com/multiformats/go-multiaddr"
-  manet "github.com/multiformats/go-multiaddr-net"
   xnet "github.com/libp2p/go-xtp-ctl/net"
   xrpc "github.com/libp2p/go-xtp-ctl/rpc"
 )
@@ -30,19 +30,18 @@ func (l *listener) Accept() (xnet.Conn, error) {
   }
 
   // Send an accept request, wait for an accept response
-  res, err := xrpc.AcceptReq(s, l.id, raddr)
+  res, err := xrpc.AcceptReq(s, l.id)
   if err != nil {
-    return err
+    return nil, err
   }
 
-  c := newConn(l.client.Conn, s, res.Conn)
-  return c, nil
+  return newConn(l.client, s, res.Conn)
 }
 
 // Close closes the listener.
 // Any blocked Accept operations will be unblocked and return errors.
 func (l *listener) Close() error {
-  _, err := xrpc.CloseReq(l.ctls, l.id)
+  err := xrpc.CloseReq(l.ctls, l.id)
   l.ctls.Close()
   return err
 }

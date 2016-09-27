@@ -2,7 +2,6 @@ package xtpctlclient
 
 import (
   ma "github.com/multiformats/go-multiaddr"
-  manet "github.com/multiformats/go-multiaddr-net"
   xnet "github.com/libp2p/go-xtp-ctl/net"
   xrpc "github.com/libp2p/go-xtp-ctl/rpc"
   pb "github.com/libp2p/go-xtp-ctl/pb"
@@ -19,7 +18,7 @@ func (t *transport) Code() string {
   return t.code
 }
 
-func (t *transport) Listen(raddr ma.Multiaddr) (xnet.Listener, error) {
+func (t *transport) Listen(laddr ma.Multiaddr) (xnet.Listener, error) {
   // open a new control stream
   s, err := t.client.Conn.Dial()
   if err != nil {
@@ -27,12 +26,12 @@ func (t *transport) Listen(raddr ma.Multiaddr) (xnet.Listener, error) {
   }
 
   // Send a listen request, wait for a listen response
-  res, err := xrpc.ListenReq(s, t.id, raddr)
+  resl, err := xrpc.ListenReq(s, t.id, laddr)
   if err != nil {
-    return err
+    return nil, err
   }
 
-  return newListener(t.client, s, res.Listener)
+  return newListener(t.client, s, resl)
 }
 
 func (t *transport) Dial(raddr ma.Multiaddr) (xnet.Conn, error) {
@@ -45,11 +44,10 @@ func (t *transport) Dial(raddr ma.Multiaddr) (xnet.Conn, error) {
   // Send a dial request, wait for the dial response
   res, err := xrpc.DialReq(s, t.id, raddr)
   if err != nil {
-    return err
+    return nil, err
   }
 
-  c := newConn(t.client, s, res.Conn)
-  return c, nil
+  return newConn(t.client, s, res.Conn)
 }
 
 func (t *transport) Dialer(laddr ma.Multiaddr) (xnet.Dialer, error) {
@@ -60,19 +58,19 @@ func (t *transport) Dialer(laddr ma.Multiaddr) (xnet.Dialer, error) {
   }
 
   // Send a dialer request, wait for the dialer response
-  res, err := xrpc.DialerReq(s, t.id, laddr)
+  resd, err := xrpc.DialerReq(s, t.id, laddr)
   if err != nil {
-    return err
+    return nil, err
   }
 
-  c := newDialer(t.client, s, res.Dialer)
-  return c, nil
+  return newDialer(t.client, s, resd)
 }
 
 func (t *transport) Close() error {
-  _, err := xrpc.CloseReq(t.ctls, t.id)
-  t.ctls.Close()
-  return err
+  return nil // dont close transport as we dont open it, just yet.
+  // err := xrpc.CloseReq(t.ctls, t.id)
+  // t.ctls.Close()
+  // return err
 }
 
 func newTransport(c *Client, ctls xnet.Stream, t *pb.Transport) (*transport, error) {
@@ -84,5 +82,5 @@ func newTransport(c *Client, ctls xnet.Stream, t *pb.Transport) (*transport, err
     ctls:   ctls,
     client: c,
     code:   *t.Transport,
-  }
+  }, nil
 }

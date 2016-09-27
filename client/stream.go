@@ -1,8 +1,9 @@
 package xtpctlclient
 
 import (
-  ma "github.com/multiformats/go-multiaddr"
-  manet "github.com/multiformats/go-multiaddr-net"
+  "io"
+
+  pb "github.com/libp2p/go-xtp-ctl/pb"
   xnet "github.com/libp2p/go-xtp-ctl/net"
   xrpc "github.com/libp2p/go-xtp-ctl/rpc"
 )
@@ -12,30 +13,31 @@ type stream struct {
   tid    int64
   ctls   IoStream // the xtp-ctl stream for this conn
   client *Client  // the xtp-ctl client
-  conn   *Conn    // the conn this stream belongs to
+  conn   *conn    // the conn this stream belongs to
 }
 
-
-// LocalMultiaddr returns the local Multiaddr associated
-// with this connection
-func (c *conn) LocalMultiaddr() ma.Multiaddr {
-  return c.laddr
+func (s *stream) Read(buf []byte) (int, error) {
+  return s.ctls.Read(buf)
 }
 
-// RemoteMultiaddr returns the remote Multiaddr associated
-// with this connection
-func (c *conn) RemoteMultiaddr() ma.Multiaddr {
-  return c.raddr
+func (s *stream) Write(buf []byte) (int, error) {
+  return s.ctls.Write(buf)
 }
+
+// Conn returns the Conn this stream belongs to.
+func (s *stream) Conn() xnet.Conn {
+  return s.conn
+}
+
 
 // Close closes the dialer.
 func (s *stream) Close() error {
-  _, err := xrpc.CloseReq(s.ctls, s.id)
+  err := xrpc.CloseReq(s.ctls, s.id)
   s.ctls.Close()
   return err
 }
 
-func newStream(c *Client, ctls xnet.Stream, s *pb.Stream, cn *conn) (*dialer, error) {
+func newStream(c *Client, ctls xnet.Stream, s *pb.Stream, cn *conn) (*stream, error) {
   if !s.Valid() {
     return nil, xrpc.ErrInvalidResponse
   }

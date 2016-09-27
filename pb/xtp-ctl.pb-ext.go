@@ -5,6 +5,8 @@ package xtp_ctl
 import proto "github.com/gogo/protobuf/proto"
 import ma "github.com/multiformats/go-multiaddr"
 
+const MinId = 1
+
 type ListReqTypes struct {
   Transports bool
   Listeners  bool
@@ -73,6 +75,16 @@ func (m *RPC) Valid() bool {
   return true
 }
 
+func (m *ListRes_Item) Valid() bool {
+  if m == nil || m.Id == nil || m.Type == nil || m.Value == nil {
+    return false
+  }
+  if *m.Id < 1 {
+    return false
+  }
+  return true
+}
+
 func (m *ListenRes) Valid() bool {
   if m == nil || m.Listener == nil {
     return false
@@ -91,7 +103,7 @@ func (m *Transport) Valid() bool {
   if m == nil || m.Id == nil || m.Transport == nil {
     return false
   }
-  if *m.Id < 0 || *m.Transport == "" {
+  if *m.Id <= MinId || *m.Transport == "" {
     return false
   }
   return true
@@ -101,7 +113,7 @@ func (m *Listener) Valid() bool {
   if m == nil || m.Id == nil || m.TransportId == nil || m.Multiaddr == nil {
     return false
   }
-  if *m.Id < 0 || *m.TransportId < 0 {
+  if *m.Id < 1 || *m.TransportId < 1 {
     return false
   }
   if _, err := ma.NewMultiaddrBytes(m.Multiaddr); err != nil {
@@ -114,7 +126,7 @@ func (m *Dialer) Valid() bool {
   if m == nil || m.Id == nil || m.TransportId == nil || m.Multiaddr == nil {
     return false
   }
-  if *m.Id < 0 || *m.TransportId < 0 {
+  if *m.Id < 1 || *m.TransportId < 1 {
     return false
   }
   if _, err := ma.NewMultiaddrBytes(m.Multiaddr); err != nil {
@@ -127,7 +139,7 @@ func (m *Conn) Valid() bool {
   if m == nil || m.Id == nil || m.TransportId == nil || m.LocalMultiaddr == nil || m.RemoteMultiaddr == nil {
     return false
   }
-  if *m.Id < 0 || *m.TransportId < 0 {
+  if *m.Id < 1 || *m.TransportId < 1 {
     return false
   }
   if _, err := ma.NewMultiaddrBytes(m.LocalMultiaddr); err != nil {
@@ -144,7 +156,7 @@ func (m *Stream) Valid() bool {
     m.LocalMultiaddr == nil || m.RemoteMultiaddr == nil {
     return false
   }
-  if *m.Id < 0 || *m.TransportId < 0 || *m.ConnId < 0 {
+  if *m.Id < 1 || *m.TransportId < 1 || *m.ConnId < 1 {
     return false
   }
   if _, err := ma.NewMultiaddrBytes(m.LocalMultiaddr); err != nil {
