@@ -1,4 +1,4 @@
-package xtpctlclient
+package xtpclient
 
 import (
   "io"
@@ -39,7 +39,7 @@ func (s *stream) Close() error {
 
 func newStream(c *Client, ctls xnet.Stream, s *pb.Stream, cn *conn) (*stream, error) {
   if !s.Valid() {
-    return nil, xrpc.ErrInvalidResponse
+    return nil, xrpc.ErrInvalidMessage
   }
   return &stream{
     id:     *s.Id,

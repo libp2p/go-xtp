@@ -64,3 +64,36 @@ func (s *smuxStream) Write(buf []byte) (int, error) {
 func (s *smuxStream) Close() error {
   return s.S.Close()
 }
+
+type smuxListener struct {
+  L manet.Listener
+}
+
+func (l *smuxListener) Multiaddr() ma.Multiaddr {
+  return l.L.Multiaddr()
+}
+
+func (l *smuxListener) Accept() (Conn, error) {
+  c, err := l.L.Accept()
+  if err != nil {
+    return nil, err
+  }
+  return XtpCtlConn(c, true)
+}
+
+func (l *smuxListener) Close() error {
+  return l.L.Close()
+}
+
+func Listen(laddr ma.Multiaddr) (Listener, error) {
+  l, err := manet.Listen(laddr)
+  return &smuxListener{l}, err
+}
+
+func Dial(raddr ma.Multiaddr) (Conn, error) {
+  c, err := manet.Dial(raddr)
+  if err != nil {
+    return nil, err
+  }
+  return XtpCtlConn(c, false)
+}

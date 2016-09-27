@@ -23,6 +23,9 @@ type Transport interface {
 
   // Listen attempts to listen on laddr, and returns a Listener if successful.
   Listen(laddr ma.Multiaddr) (Listener, error)
+
+  // Close shuts down the transport stack, if relevant. (in many, this is a noop)
+  Close() error
 }
 
 type Listener interface {

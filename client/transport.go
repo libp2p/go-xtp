@@ -1,4 +1,4 @@
-package xtpctlclient
+package xtpclient
 
 import (
   ma "github.com/multiformats/go-multiaddr"
@@ -75,7 +75,7 @@ func (t *transport) Close() error {
 
 func newTransport(c *Client, ctls xnet.Stream, t *pb.Transport) (*transport, error) {
   if !t.Valid() {
-    return nil, xrpc.ErrInvalidResponse
+    return nil, xrpc.ErrInvalidMessage
   }
   return &transport{
     id:     *t.Id,

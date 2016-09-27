@@ -1,68 +1,21 @@
-package xtpctlserver
+package xtpserver
 
 import (
   "sync"
-  "fmt"
+  "errors"
 
-  manet "github.com/multiformats/go-multiaddr-net"
-  ggio "gx/ipfs/QmZ4Qi3GaRbjcx28Sme5eMH7RQjGkt8wHxt2a65oLaeFEV/gogo-protobuf/io"
-  proto "gx/ipfs/QmZ4Qi3GaRbjcx28Sme5eMH7RQjGkt8wHxt2a65oLaeFEV/gogo-protobuf/proto"
-
-  pb "github.com/libp2p/go-xtp-ctl/pb"
+  xnet "github.com/libp2p/go-xtp-ctl/net"
 )
 
 type ServerClient struct {
+  sync.RWMutex
+
   Server *Server
-  Conn   manet.Conn
+  Conn   xnet.Conn
 
-  lk         sync.RWMutex
-  nextId     int64
-  Transports map[int64]*Transport
+  transports map[int64]*transport
 
-  NextId func() int64 // function to get the next id.
-}
-
-func StreamWriteRPC(s IoStream, rpc *pb.RPC) error {
-  w := ggio.NewDelimitedWriter(s)
-  return w.WriteMsg(rpc)
-}
-
-func StreamWriteRPCRes(s IoStream, typ pb.RPC_Type, res proto.Message) error {
-  var b []byte
-  var err error
-  if res != nil {
-    b, err = proto.Marshal(res)
-    if err != nil {
-      return err
-    }
-  }
-  return StreamWriteRPC(s, &pb.RPC{
-    Rpc:     &typ,
-    Message: b,
-  })
-}
-
-func StreamWriteRPCError(s IoStream, typ pb.RPC_Type, err error) error {
-  str := fmt.Sprint(err)
-  return StreamWriteRPC(s, &pb.RPC{
-    Rpc:   &typ,
-    Error: &str,
-  })
-}
-
-func (sc *ServerClient) RPCStreamHandler(s IoStream) error {
-  r := ggio.NewDelimitedReader(s, MessageSizeMax)
-  req := pb.RPC{}
-  if err := r.ReadMsg(&req); err != nil {
-    return err
-  }
-
-  err := sc.handleReq(s, &req)
-  if err != nil {
-    return err
-  }
-
-  return nil
+  idCounter // embedded
 }
 
 // Close shuts down the ServerClient, closing everything.
@@ -70,38 +23,79 @@ func (sc *ServerClient) Close() error {
   panic("todo")
 }
 
-func (sc *ServerClient) closeTransport(id int64) (err error) {
-  sc.lk.Lock()
-  defer sc.lk.Unlock()
-  t, found := sc.Transports[id]
-  if found {
-    err = t.Close()
-    delete(sc.Transports, id)
-  }
-  return err
+func (sc *ServerClient) transport(id int64) *transport {
+  sc.Lock()
+  t := sc.transports[id]
+  sc.Unlock()
+  return t
 }
 
-func (sc *ServerClient) CloseId(id int64) error {
-  sc.lk.RLock()
-  _, found := sc.Transports[id]
-  if !found {
-    for _, t := range sc.Transports {
-      t.CloseId(id)
-    }
-  }
-  sc.lk.RUnlock()
+func (sc *ServerClient) addTransport(t *transport) {
+  sc.Lock()
+  sc.transports[t.id] = t
+  sc.Unlock()
+}
 
-  if found { // it's a transport, remove it here (different Lock, not RLock)
-    sc.closeTransport(id)
+func (sc *ServerClient) rmTransport(t *transport) {
+  sc.Lock()
+  delete(sc.transports, t.id)
+  sc.Unlock()
+}
+
+func (sc *ServerClient) Find(id int64) interface{} {
+  sc.RLock()
+  defer sc.RUnlock()
+  t, found := sc.transports[id]
+  if found {
+    return t
+  }
+
+  for _, t := range sc.transports {
+    v := t.Find(id)
+    if v != nil {
+      return v
+    }
   }
 
   return nil
 }
 
-func (sc *ServerClient) AddTransport(code string) *Transport {
-  t := NewTransport(sc.NextId, code)
-  sc.lk.Lock()
-  sc.Transports[t.Id] = t
-  sc.lk.Unlock()
-  return t
+func (sc *ServerClient) CloseId(id int64) error {
+  v := sc.Find(id)
+  if v == nil {
+    return nil // already closed?
+  }
+
+  switch v := v.(type) {
+  case *transport:
+    sc.rmTransport(v)
+    return v.Close()
+  case *listener:
+    v.xport.rmListener(v)
+    return v.Close()
+  case *dialer:
+    v.xport.rmDialer(v)
+    return nil
+  case *conn:
+    v.xport.rmConn(v)
+    return v.Close()
+  case *stream:
+    v.conn.rmStream(v)
+    return v.Close()
+  default:
+    return errors.New("unknown type")
+  }
+}
+
+type idCounter struct {
+  lk   sync.Mutex
+  next int64
+}
+
+func (c *idCounter) NextId() int64 {
+  c.lk.Lock()
+  c.next++
+  n := c.next
+  c.lk.Unlock()
+  return n
 }

@@ -1,4 +1,4 @@
-package xtpctlclient
+package xtpclient
 
 import (
   ma "github.com/multiformats/go-multiaddr"

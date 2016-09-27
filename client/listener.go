@@ -1,4 +1,4 @@
-package xtpctlclient
+package xtpclient
 
 import (
   pb "github.com/libp2p/go-xtp-ctl/pb"
@@ -48,7 +48,7 @@ func (l *listener) Close() error {
 
 func newListener(c *Client, ctls xnet.Stream, l *pb.Listener) (*listener, error) {
   if !l.Valid() {
-    return nil, xrpc.ErrInvalidResponse
+    return nil, xrpc.ErrInvalidMessage
   }
   a, err := ma.NewMultiaddrBytes(l.Multiaddr)
   if err != nil {

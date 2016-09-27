@@ -15,7 +15,7 @@ var (
   ErrUnknownRPC = errors.New("unknown rpc")
   ErrProtocol   = errors.New("incorrect protocol behavior")
   ErrNotFound   = errors.New("descriptor not found")
-  ErrInvalidResponse = errors.New("invalid response")
+  ErrInvalidMessage = errors.New("invalid message")
 )
 
 var (
@@ -56,10 +56,10 @@ func ReadRPCMsg(s IoStream, typ pb.RPC_Type, m proto.Message) error {
   }
 
   if !rpc.Valid() {
-    return ErrInvalidResponse
+    return ErrInvalidMessage
   }
   if typ != pb.RPC_Null && typ != *rpc.Rpc {
-    return ErrInvalidResponse
+    return ErrInvalidMessage
   }
 
   if rpc.Error != nil && len(*rpc.Error) > 0 {
@@ -80,10 +80,14 @@ func ReadRPCMsg(s IoStream, typ pb.RPC_Type, m proto.Message) error {
   // automatic validation :)
   if v, ok := m.(validator); ok {
     if !v.Valid() {
-      return ErrInvalidResponse
+      return ErrInvalidMessage
     }
   }
   return nil
+}
+
+func ErrRPCRes(s IoStream, req *pb.RPC, err error) error {
+  return WriteRPCMsg(s, *req.Rpc, nil, err)
 }
 
 type IoStream interface {
